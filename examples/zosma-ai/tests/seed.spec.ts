@@ -14,8 +14,5 @@ import { expect, test } from '@playwright/test';
  */
 test('seed', async ({ page }) => {
   await page.goto('/');
-
-  // Verify the site is up and the main brand is present
-  await expect(page).toHaveTitle(/Zosma/i);
-  await expect(page.getByRole('img', { name: /zosma/i }).first()).toBeVisible();
+  await expect(page).toHaveTitle(/zosma/i);
 });

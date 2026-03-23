@@ -242,6 +242,14 @@ playwright.config.ts   ← TypeScript projects only
 
 The CLI's `agents init` command prompts for an AI loop (OpenCode is the default) and runs `npx playwright init-agents --loop=<choice>`. **This is TypeScript-only.** Python projects currently skip agent scaffolding with a note.
 
+After `init-agents` completes, zosma-qa patches the generated planner/generator
+prompts so they always save Markdown plans into the existing `specs/`
+directory:
+
+- Planner uses paths like `specs/checkout.plan.md`
+- It avoids creating sibling folders like `spec/` or `plans/` when `specs/`
+  already exists
+
 ### Using Playwright test agents
 
 Playwright ships three built-in agents that work with zosma-qa's seed tests:

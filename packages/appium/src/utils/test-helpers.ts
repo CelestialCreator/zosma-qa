@@ -8,7 +8,7 @@
 export interface Browser {
   $: (selector: string) => Promise<unknown>;
   $$: (selector: string) => Promise<unknown[]>;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

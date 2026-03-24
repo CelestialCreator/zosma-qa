@@ -4,7 +4,7 @@ import type { RunnerConfig } from '@zosmaai/zosma-qa-core';
 import { loadConfig } from '@zosmaai/zosma-qa-core';
 import { buildCapabilities, validateCapabilities } from './capabilities';
 import { mergeWithDefaults } from './defaults';
-import type { AppiumConfig, ResolvedAppiumConfig } from './types';
+import type { AppiumConfig, AppiumPlatform, ResolvedAppiumConfig } from './types';
 
 /**
  * Load and resolve Appium configuration.
@@ -25,10 +25,9 @@ export async function loadAppiumConfig(
   const appiumOverrides = await loadAppiumConfigFile(cwd);
 
   // Merge: baseConfig + appiumOverrides + smart defaults
-  const merged = mergeWithDefaults(
-    { ...baseConfig, ...appiumOverrides },
-    (appiumOverrides.platformName || 'ReactNative') as any,
-  );
+  const platformName: AppiumPlatform = (appiumOverrides.platformName ||
+    'ReactNative') as AppiumPlatform;
+  const merged = mergeWithDefaults({ ...baseConfig, ...appiumOverrides }, platformName);
 
   // Auto-detect missing values
   const resolved = await autoDetectConfig(merged, cwd);
@@ -37,11 +36,11 @@ export async function loadAppiumConfig(
   const mergedCapabilities = buildCapabilities(resolved);
 
   // Validate
-  validateCapabilities(mergedCapabilities, (resolved.platformName || 'ReactNative') as any);
+  validateCapabilities(mergedCapabilities, platformName);
 
   return {
     ...resolved,
-    platformName: (resolved.platformName || 'ReactNative') as any,
+    platformName,
     mergedCapabilities,
   } as ResolvedAppiumConfig;
 }

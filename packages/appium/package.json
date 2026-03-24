@@ -34,13 +34,15 @@
   },
   "dependencies": {
     "@zosmaai/zosma-qa-core": "workspace:*",
-    "portfinder": "^1.0.32"
+    "portfinder": "^1.0.32",
+    "webdriverio": "^9.27.0"
   },
   "peerDependencies": {
     "appium": ">=2.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/webdriverio": "^5.0.0",
     "typescript": "^5.4.0"
   }
 }

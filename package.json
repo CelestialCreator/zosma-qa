@@ -23,6 +23,10 @@
     "@biomejs/biome": "^2.4.8",
     "@playwright/test": "^1.52.0",
     "@types/node": "^20.0.0",
+    "@types/webdriverio": "^5.0.0",
     "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "webdriverio": "^9.27.0"
   }
 }

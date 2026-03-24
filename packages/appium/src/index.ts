@@ -49,3 +49,7 @@ export { AppiumServer } from './server/appium-server';
 // Export test builder & helpers
 export { expect, test } from './test-builder';
 export * from './utils/test-helpers';
+export { SessionManager } from './webdriver/session-manager';
+// Export WebdriverIO integration (Phase 2)
+export type { TestCase, TestContext, TestFn, TestSuite } from './webdriver/test-executor';
+export { clearTestRegistry, getTestRegistry, TestLoader } from './webdriver/test-loader';

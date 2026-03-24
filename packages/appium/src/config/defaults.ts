@@ -126,9 +126,10 @@ export function mergeWithDefaults(
   let merged: AppiumConfig = APPIUM_DEFAULTS as unknown as AppiumConfig;
 
   // Apply platform-specific defaults
+  const platformDefaults = PLATFORM_DEFAULTS[platform];
   merged = {
     ...merged,
-    ...(PLATFORM_DEFAULTS[platform] as any),
+    ...platformDefaults,
   };
 
   // Override with user config

@@ -4,6 +4,9 @@ import type { ResolvedAppiumConfig } from './config/types';
 import { DeviceManager } from './device/device-manager';
 import { findAppiumTests } from './discovery';
 import { AppiumServer } from './server/appium-server';
+import { SessionManager } from './webdriver/session-manager';
+import { executeTestSuite } from './webdriver/test-executor';
+import { clearTestRegistry, TestLoader } from './webdriver/test-loader';
 
 /**
  * AppiumRunner orchestrates Appium test execution.
@@ -11,13 +14,15 @@ import { AppiumServer } from './server/appium-server';
  * - Config loading & validation
  * - Appium server lifecycle
  * - Device detection & management
- * - Test discovery & execution
+ * - WebdriverIO session creation
+ * - Test discovery, loading & execution
  * - Result aggregation
  */
 export class AppiumRunner {
   private config: ResolvedAppiumConfig | null = null;
   private server: AppiumServer | null = null;
   private deviceManager: DeviceManager | null = null;
+  private sessionManager: SessionManager | null = null;
 
   constructor(private baseConfig: RunnerConfig) {}
 
@@ -27,9 +32,10 @@ export class AppiumRunner {
    * 2. Start Appium server
    * 3. Prepare device (launch simulator if needed)
    * 4. Discover tests
-   * 5. Run tests
-   * 6. Cleanup
-   * 7. Return results
+   * 5. Load tests and initialize WebdriverIO session
+   * 6. Run tests with fixtures
+   * 7. Cleanup
+   * 8. Return results
    */
   async execute(): Promise<TestResult[]> {
     try {
@@ -58,21 +64,47 @@ export class AppiumRunner {
       }
       console.log(`Found ${testFiles.length} test file(s)`);
 
-      // 5. Run tests (placeholder)
+      // 5. Load tests and initialize WebdriverIO session
+      console.log(`Initializing WebdriverIO session...`);
+      this.sessionManager = new SessionManager(this.config);
+      const driver = await this.sessionManager.initialize();
+
+      // Clear test registry before loading new tests
+      clearTestRegistry();
+
+      const testLoader = new TestLoader();
+      const testSuites = await testLoader.loadTestFiles(testFiles);
+
+      if (testSuites.length === 0) {
+        console.warn(`No test suites loaded from ${testFiles.length} file(s)`);
+        return [];
+      }
+
+      console.log(`Loaded ${testSuites.length} test suite(s)`);
+
+      // 6. Run tests with fixtures
+      console.log(`Running tests...`);
       const results: TestResult[] = [];
-      for (const testFile of testFiles) {
-        console.log(`Running: ${testFile}`);
-        // TODO: Actual test execution logic
-        results.push({
-          name: testFile,
-          status: 'skipped',
-          duration: 0,
-        });
+
+      for (const suite of testSuites) {
+        const suiteResults = await executeTestSuite(suite, { driver });
+        results.push(...suiteResults);
       }
 
       return results;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Test execution failed: ${errorMessage}`);
+      return [
+        {
+          name: 'Test Suite Initialization',
+          status: 'failed',
+          duration: 0,
+          error: errorMessage,
+        },
+      ];
     } finally {
-      // Cleanup
+      // 7. Cleanup
       await this.cleanup();
     }
   }
@@ -81,6 +113,9 @@ export class AppiumRunner {
    * Cleanup resources.
    */
   private async cleanup(): Promise<void> {
+    if (this.sessionManager) {
+      await this.sessionManager.cleanup();
+    }
     if (this.deviceManager) {
       await this.deviceManager.cleanup();
     }

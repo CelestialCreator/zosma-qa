@@ -37,7 +37,7 @@ export class SessionManager {
       capabilities,
       logLevel: this.config.verbose ? ('debug' as const) : ('warn' as const),
       connectionRetryCount: 3,
-      connectionRetryTimeout: 5000,
+      connectionRetryTimeout: 120000,
     };
 
     try {

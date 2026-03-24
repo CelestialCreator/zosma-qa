@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { Browser, TestResult } from '@zosmaai/zosma-qa-core';
 import { loadConfig } from '@zosmaai/zosma-qa-core';
 import chalk from 'chalk';
 
@@ -17,18 +18,86 @@ export interface RunOptions {
 /**
  * `zosma-qa run` — detects the active runner from zosma.config and delegates
  * to the appropriate process:
+ *   - plugins: ['appium']     → AppiumRunner (WebdriverIO-based)
  *   - plugins: ['pytest']     → `uv run pytest` (if uv.lock present) or `python -m pytest`
  *   - plugins: ['playwright'] → `npx playwright test` (default)
  */
 export async function runTests(options: RunOptions = {}): Promise<void> {
   const cwd = process.cwd();
   const config = await loadConfig(cwd);
+  const isAppium = config.plugins.includes('appium');
   const isPython = config.plugins.includes('pytest');
 
-  if (isPython) {
+  if (isAppium) {
+    await runAppium(config.testDir ?? './tests', config.baseURL, config.browsers ?? [], cwd);
+  } else if (isPython) {
     await runPytest(options, config.testDir ?? './tests', cwd);
   } else {
     await runPlaywright(options, cwd);
+  }
+}
+
+// ─── Appium dispatch ──────────────────────────────────────────────────────────
+
+async function runAppium(
+  testDir: string,
+  baseURL: string | undefined,
+  browsers: string[],
+  cwd: string,
+): Promise<void> {
+  console.log('');
+  console.log(
+    chalk.bold.cyan('  zosma-qa') + chalk.dim('  running: ') + chalk.white('Appium tests'),
+  );
+  console.log('');
+
+  try {
+    const { AppiumRunner } = (await import('@zosmaai/zosma-qa-appium')) as {
+      AppiumRunner: typeof import('@zosmaai/zosma-qa-appium').AppiumRunner;
+    };
+    const runner = new AppiumRunner({
+      testDir: path.resolve(cwd, testDir),
+      baseURL,
+      browsers: browsers as Browser[],
+      reporters: ['list'],
+      ci: !process.stdout.isTTY,
+    });
+    const results: TestResult[] = await runner.execute();
+
+    // Print summary
+    const passed = results.filter((r) => r.status === 'passed').length;
+    const failed = results.filter((r) => r.status === 'failed').length;
+    const skipped = results.filter((r) => r.status === 'skipped').length;
+
+    console.log('');
+    console.log(chalk.bold('  Results:'));
+    for (const r of results) {
+      const icon =
+        r.status === 'passed'
+          ? chalk.green('PASS')
+          : r.status === 'failed'
+            ? chalk.red('FAIL')
+            : chalk.yellow('SKIP');
+      console.log(`    ${icon}  ${r.name} (${r.duration}ms)`);
+      if (r.error) {
+        console.log(chalk.red(`           ${r.error}`));
+      }
+    }
+
+    console.log('');
+    console.log(
+      `  ${chalk.green(`${passed} passed`)}` +
+        (failed > 0 ? `, ${chalk.red(`${failed} failed`)}` : '') +
+        (skipped > 0 ? `, ${chalk.yellow(`${skipped} skipped`)}` : ''),
+    );
+
+    if (failed > 0) {
+      process.exit(1);
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(chalk.red(`  Appium runner failed: ${msg}`));
+    process.exit(1);
   }
 }
 

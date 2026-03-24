@@ -1,5 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 import type { AppiumServerConfig } from '../config/types';
 
 /**
@@ -86,8 +88,9 @@ export class AppiumServer {
    * Check if server is healthy via HTTP status endpoint.
    */
   async isHealthy(): Promise<boolean> {
+    const statusPath = this.config.basePath ? `${this.config.basePath}/status` : '/status';
     return new Promise((resolve) => {
-      const req = http.get(`${this.url}/status`, { timeout: 3000 }, (res) => {
+      const req = http.get(`${this.url}${statusPath}`, { timeout: 3000 }, (res) => {
         resolve((res.statusCode === 200 || res.statusCode === 404) ?? false);
       });
       req.on('error', () => {
@@ -107,7 +110,7 @@ export class AppiumServer {
   private startServerProcess(): void {
     const args = [
       'server',
-      `--host=${this.config.host}`,
+      `--address=${this.config.host}`,
       `--port=${this.config.port}`,
       `--log-level=${this.config.logLevel}`,
       `--base-path=${this.config.basePath}`,
@@ -116,9 +119,15 @@ export class AppiumServer {
     // Try: appium (global) or npx appium
     const processCmd = process.platform === 'win32' ? 'appium.cmd' : 'appium';
 
+    // Ensure APPIUM_HOME is set so the spawned server finds globally installed
+    // drivers. Without this, Appium v3 auto-detects home based on cwd and may
+    // use a project-local cache (node_modules/.cache/appium) with no drivers.
+    const appiumHome = process.env.APPIUM_HOME || path.join(os.homedir(), '.appium');
+
     this.process = spawn(processCmd, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
+      env: { ...process.env, APPIUM_HOME: appiumHome },
     });
 
     if (!this.process) {
@@ -136,6 +145,14 @@ export class AppiumServer {
         console.error(`[Appium] ${data}`);
       });
     }
+
+    // Always capture stderr to diagnose driver issues
+    this.process.stderr?.on('data', (data) => {
+      const msg = data.toString();
+      if (msg.includes('Error') || msg.includes('error')) {
+        console.error(`[Appium stderr] ${msg.trim()}`);
+      }
+    });
 
     this.process.on('error', (err) => {
       console.error(`Appium server process error: ${err.message}`);

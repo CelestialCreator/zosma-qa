@@ -36,6 +36,7 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@zosmaai/zosma-qa-appium": "workspace:*",
     "@zosmaai/zosma-qa-core": "workspace:*",
     "@zosmaai/zosma-qa-playwright": "workspace:*",
     "@inquirer/prompts": "^7.0.0",

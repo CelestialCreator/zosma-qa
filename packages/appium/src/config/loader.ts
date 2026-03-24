@@ -21,13 +21,20 @@ export async function loadAppiumConfig(
   // Load base config
   const baseConfig = await loadConfig(cwd);
 
+  // Load the raw config file to get Appium-specific fields that core strips out
+  const rawConfig = await loadRawConfig(cwd);
+
   // Extract Appium plugin config (if appium.config.ts exists)
   const appiumOverrides = await loadAppiumConfigFile(cwd);
 
-  // Merge: baseConfig + appiumOverrides + smart defaults
+  // Merge: baseConfig + rawConfig extras + appiumOverrides + smart defaults
   const platformName: AppiumPlatform = (appiumOverrides.platformName ||
+    rawConfig.platformName ||
     'ReactNative') as AppiumPlatform;
-  const merged = mergeWithDefaults({ ...baseConfig, ...appiumOverrides }, platformName);
+  const merged = mergeWithDefaults(
+    { ...baseConfig, ...rawConfig, ...appiumOverrides },
+    platformName,
+  );
 
   // Auto-detect missing values
   const resolved = await autoDetectConfig(merged, cwd);
@@ -65,6 +72,31 @@ async function loadAppiumConfigFile(cwd: string): Promise<Partial<AppiumConfig>>
   }
 
   // For now, return empty — all config comes from zosma.config.ts
+  return {};
+}
+
+/**
+ * Load the raw config file to get Appium-specific fields
+ * (platformName, automationName, etc.) that core's loadConfig() strips out.
+ */
+async function loadRawConfig(cwd: string): Promise<Partial<AppiumConfig>> {
+  const candidates = [
+    path.join(cwd, 'zosma.config.ts'),
+    path.join(cwd, 'zosma.config.js'),
+    path.join(cwd, 'zosma.config.mjs'),
+  ];
+
+  for (const file of candidates) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const mod = require(file);
+      const config = mod.default ?? mod;
+      return config as Partial<AppiumConfig>;
+    } catch {
+      // file not found or parse error — try next
+    }
+  }
+
   return {};
 }
 

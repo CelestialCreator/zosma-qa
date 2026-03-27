@@ -1,0 +1,13 @@
+{
+  "name": "k6-load-test-example",
+  "version": "0.1.0",
+  "description": "Example k6 load tests for zosma.ai — shows the zosma-qa k6 workflow",
+  "private": true,
+  "scripts": {
+    "test": "npx zosma-qa k6 run"
+  },
+  "devDependencies": {
+    "@zosmaai/zosma-qa-k6": "workspace:*",
+    "@zosmaai/zosma-qa-core": "workspace:*"
+  }
+}

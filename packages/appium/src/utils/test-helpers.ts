@@ -15,12 +15,17 @@ type InputSelectorInput =
   | string
   | { label?: string; placeholder?: string; testID?: string; selector?: string };
 
+/** Escape a string for safe use inside XPath attribute selectors. */
+function escapeXPath(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 function resolveSelector(sel: SelectorInput): string {
   if (typeof sel === 'string') return sel;
   if (sel.selector) return sel.selector;
   if (sel.testID) return `~${sel.testID}`;
   if (sel.text) {
-    const escaped = sel.text.replace(/"/g, '\\"');
+    const escaped = escapeXPath(sel.text);
     return `//*[contains(@text,"${escaped}") or contains(@label,"${escaped}") or contains(@value,"${escaped}")]`;
   }
   throw new Error('Selector must include at least one of: testID, text, selector, or a string');
@@ -31,11 +36,11 @@ function resolveInputSelector(sel: InputSelectorInput): string {
   if (sel.selector) return sel.selector;
   if (sel.testID) return `~${sel.testID}`;
   if (sel.label) {
-    const escaped = sel.label.replace(/"/g, '\\"');
+    const escaped = escapeXPath(sel.label);
     return `//*[contains(@text,"${escaped}") or contains(@label,"${escaped}")]`;
   }
   if (sel.placeholder) {
-    const escaped = sel.placeholder.replace(/"/g, '\\"');
+    const escaped = escapeXPath(sel.placeholder);
     return `//*[contains(@text,"${escaped}") or contains(@hint,"${escaped}")]`;
   }
   throw new Error(
@@ -104,7 +109,7 @@ export async function expectText(
   opts?: { timeout?: number; exact?: boolean; visible?: boolean },
 ): Promise<void> {
   const timeout = opts?.timeout ?? 5000;
-  const escaped = text.replace(/"/g, '\\"');
+  const escaped = escapeXPath(text);
   const xpath = opts?.exact
     ? `//*[@text="${escaped}" or @label="${escaped}" or @value="${escaped}"]`
     : `//*[contains(@text,"${escaped}") or contains(@label,"${escaped}") or contains(@value,"${escaped}")]`;
